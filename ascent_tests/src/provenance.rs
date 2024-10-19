@@ -1,10 +1,9 @@
-
 // compute different style of provenance in ascent
 #![allow(warnings)]
 
+use ascent::lattice::set::*;
 use ascent::*;
 use std::rc::Rc;
-use ascent::lattice::set::*;
 
 // why provenance is used trace all possible sources of a output value
 // in some literature also called proof tree
@@ -35,22 +34,16 @@ ascent! {
     path(x, y) <-- path_prov(x, y, _);
 }
 
-
 #[test]
 fn test_why_expensive() {
-    let mut tc = TCWhyExpensive::default();
-    tc.edge = vec![
-        (1, 2),
-        (2, 3),
-        (3, 4),
-        (1, 4),
-    ];
+   let mut tc = TCWhyExpensive::default();
+   tc.edge = vec![(1, 2), (2, 3), (3, 4), (1, 4)];
 
-    tc.run();
+   tc.run();
 
-    println!("path_prov: {:?}", tc.path_prov);
-    println!("path_prov size = {}", tc.path_prov.len());
-    assert_eq!(tc.path_prov.len(), 11);
+   println!("path_prov: {:?}", tc.path_prov);
+   println!("path_prov size = {}", tc.path_prov.len());
+   assert_eq!(tc.path_prov.len(), 11);
 }
 
 // above version is flatten version
@@ -77,29 +70,23 @@ ascent! {
         edge_prov(z, y, e2);
 }
 
-
 #[test]
 fn test_why_lattice() {
-    let mut tc = TCWhyLattice::default();
-    tc.edge = vec![
-        (1, 2),
-        (2, 3),
-        (3, 4),
-        (1, 4),
-    ];
+   let mut tc = TCWhyLattice::default();
+   tc.edge = vec![(1, 2), (2, 3), (3, 4), (1, 4)];
 
-    tc.run();
+   tc.run();
 
-    println!("path_prov: {:?}", tc.path_prov);
-    println!("path_prov size = {}", tc.path_prov.len());
-    // assert_eq!(tc.path_prov.len(), 11);
+   println!("path_prov: {:?}", tc.path_prov);
+   println!("path_prov size = {}", tc.path_prov.len());
+   // assert_eq!(tc.path_prov.len(), 11);
 }
 
 // can we get slog style int autoinc id?
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct StructId(&'static str, usize);
 
-ascent_par!{
+ascent_par! {
     struct WhySlog;
 
     relation edge_raw(i32, i32);
@@ -108,14 +95,19 @@ ascent_par!{
     relation path(i32, StructId);
     relation path_id(i32, StructId, usize);
 
-    let eid = !edge(x, y), edge_id(x, y, eid) <--
-        edge_raw(x, y);
-    
+    macro id_gen($rel_name: ident, $id: ident, $args: va_list) {
+        let $id = !$rel_name($args), $($rel_name)_id($args, $id)
+    }
+
+    // let eid = !edge(x, y), edge_id(x, y, eid) <--
+    //     edge_raw(x, y);
+   id_gen!(edge, id, x, y) <-- edge_raw(x, y);
+
     let new_id = !path(x, nest_id.clone()),
     path_id(x, nest_id, new_id) <--
         edge_id(x, y, eid),
         let nest_id = StructId("edge", *eid);
-    
+
     let new_id = !path(x, nest_id.clone()),
     path_id(x, nest_id, new_id) <--
         edge(x, y),
@@ -126,23 +118,19 @@ ascent_par!{
 
 #[test]
 fn test_why_slog() {
-    let mut tc = WhySlog::default();
-    tc.edge_raw = ascent::boxcar::vec![
-        (1, 2),
-        (2, 3),
-        (3, 4),
-        (1, 4),
-    ];
+   let mut tc = WhySlog::default();
+   tc.edge_raw = ascent::boxcar::vec![(1, 2), (2, 3), (3, 4), (1, 4),];
 
-    tc.run();
+   tc.run();
 
-    println!("path_id: {:?}", tc.path_id);
-    println!("path_id size = {}", tc.path_id.len());
-    // assert_eq!(tc.path_prov.len(), 11);
+   println!("path_id: {:?}", tc.path_id);
+   println!("path_id size = {}", tc.path_id.len());
+   println!("edge_id size = {}", tc.edge_id.len());
+   println!("edge_id: {:?}", tc.edge_id);
+   // assert_eq!(tc.path_prov.len(), 11);
 }
 
 // where provenance
-
 
 ascent_par! {
     struct TCWhere;
@@ -166,7 +154,7 @@ ascent_par! {
     path_id(x, y, new_id),
     provenance(StructId("path", new_id), StructId("edge", *eid)) <--
         edge_id(x, y, eid);
-    
+
     let new_id = !path(x, z),
     path_id(x, z, new_id),
     // provenance(StructId("path", new_id), StructId("path", *pid)),
@@ -177,17 +165,12 @@ ascent_par! {
 
 #[test]
 fn test_where() {
-    let mut tc = TCWhere::default();
-    tc.edge_raw = ascent::boxcar::vec![
-        (1, 2),
-        (2, 3),
-        (3, 4),
-        (1, 4),
-    ];
+   let mut tc = TCWhere::default();
+   tc.edge_raw = ascent::boxcar::vec![(1, 2), (2, 3), (3, 4), (1, 4),];
 
-    tc.run();
-    println!("provenance size = {}", tc.provenance.len());
-    println!("path_id size = {}", tc.path_id.len());
-    println!("edge_id size = {}", tc.edge_id.len());
-    println!("provenance: {:?}", tc.provenance);
+   tc.run();
+   println!("provenance size = {}", tc.provenance.len());
+   println!("path_id size = {}", tc.path_id.len());
+   println!("edge_id size = {}", tc.edge_id.len());
+   println!("provenance: {:?}", tc.provenance);
 }
