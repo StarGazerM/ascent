@@ -135,6 +135,44 @@ pub fn is_wild_card(expr: &Expr) -> bool {
    }
 }
 
+// pub fn contains_relation(ts: TokenStream) -> bool {
+//    ts.into_iter().any(|tt| {
+//       match tt {
+//          TokenTree::Ident(ident) => ident.to_string().contains("relation"),
+//          _ => false
+//       }
+//    })
+// }
+
+// pub fn contains_arrow(ts: TokenStream) -> bool {
+//    // arrow is a <--
+//    let mut matching = "";
+//    let mut arrow_matched = false;
+//    for tt in ts {
+//       match tt {
+//          TokenTree::Punct(punct) => {
+//             let cur = punct.as_char();
+//             if arrow_matched {
+//                if cur == '-' {
+//                   matching = "<-";
+//                } else if cur == '-' && matching == "<-" {
+//                   return true;
+//                } else {
+//                   arrow_matched = false;
+//                }
+//             } else if cur == '<' {
+//                matching = "<";
+//             } else if cur == '-' && matching == "<" {
+//                arrow_matched = true;
+//             } else {
+//                matching = "";
+//             }
+//          },
+//          _ => matching = ""
+//       }
+//    }
+//    false
+// }
 
 pub fn token_stream_replace_macro_idents(input: TokenStream, ident_replacements: &HashMap<Ident, TokenStream>) -> (TokenStream, bool) {
    fn ts_replace(ts: TokenStream, ident_replacements: &HashMap<Ident, TokenStream>, res: &mut Vec<TokenTree>) -> bool {

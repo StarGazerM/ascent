@@ -569,7 +569,8 @@ pub(crate) struct AscentProgram {
    pub relations : Vec<RelationNode>,
    pub signatures: Option<Signatures>,
    pub attributes: Vec<syn::Attribute>,
-   pub macros: Vec<MacroDefNode>
+   pub macros: Vec<MacroDefNode>,
+   pub macro_invocs: Vec<syn::ExprMacro>
 }
 
 impl Parse for AscentProgram {
@@ -586,6 +587,7 @@ impl Parse for AscentProgram {
       let mut rules = vec![];
       let mut relations = vec![];
       let mut macros = vec![];
+      let mut macro_invocs = vec![];
       while !input.is_empty() {
          let attrs = if !struct_attrs.is_empty() {std::mem::take(&mut struct_attrs)} else {Attribute::parse_outer(input)?};
          if input.peek(kw::relation) || input.peek(kw::lattice){
@@ -612,6 +614,11 @@ impl Parse for AscentProgram {
                return Err(Error::new(attrs[0].span(), "unexpected attribute(s)"));
             }
             macros.push(MacroDefNode::parse(input)?);
+         } else if input.peek(Token![@]) {
+            input.parse::<Token![@]>()?;
+            let expr_macro = input.parse()?;
+            macro_invocs.push(expr_macro);
+            input.parse::<Token![;]>()?;
          } else {
             if !attrs.is_empty() {
                return Err(Error::new(attrs[0].span(), "unexpected attribute(s)"));
@@ -619,7 +626,7 @@ impl Parse for AscentProgram {
             rules.push(RuleNode::parse(input)?);
          }
       }
-      Ok(AscentProgram{rules, relations, signatures, attributes, macros})
+      Ok(AscentProgram{rules, relations, signatures, attributes, macros, macro_invocs})
    }
 }
 
@@ -1095,6 +1102,17 @@ fn rule_expand_macro_invocations(rule: RuleNode, macros: &HashMap<Ident, &MacroD
 
 pub(crate) fn desugar_ascent_program(mut prog: AscentProgram) -> Result<AscentProgram> {
    let macros = prog.macros.iter().map(|m| (m.name.clone(), m)).collect::<HashMap<_,_>>();
+
+   for invoke in prog.macro_invocs.iter() {
+      let mac_def = macros.get(invoke.mac.path.get_ident().unwrap())
+                  .ok_or_else(|| Error::new(invoke.span(), "undefined macro"))?;
+      let expanded = invoke_macro(invoke, mac_def)?;
+      // parse as program
+      let expanded_prog = Parser::parse2(AscentProgram::parse, expanded)?;
+      prog.rules.extend(expanded_prog.rules);
+      prog.relations.extend(expanded_prog.relations);
+   }
+
    let rules_macro_expanded = 
       prog.rules.into_iter()
       .map(|r| rule_expand_macro_invocations(r, &macros))

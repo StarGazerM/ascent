@@ -84,36 +84,36 @@ fn test_why_lattice() {
 
 // can we get slog style int autoinc id?
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-struct StructId(&'static str, usize);
+struct Id(&'static str, usize);
 
 ascent_par! {
     struct WhySlog;
 
-    relation edge_raw(i32, i32);
-    relation edge(i32, i32);
-    relation edge_id(i32, i32, usize);
-    relation path(i32, StructId);
-    relation path_id(i32, StructId, usize);
-
     macro id_gen($rel_name: ident, $id: ident, $args: va_list) {
         let $id = !$rel_name($args), $($rel_name)_id($args, $id)
     }
+    macro id_rel($rel_name: ident, $args: va_list) {
+        $($rel_name)_id($args)
+    }
+    macro declare_id_rel($rel_name: ident, $args: va_list) {
+        relation $rel_name($args);
+        relation $($rel_name)_id($args, usize);
+    }
 
-    // let eid = !edge(x, y), edge_id(x, y, eid) <--
-    //     edge_raw(x, y);
-   id_gen!(edge, id, x, y) <-- edge_raw(x, y);
+    relation edge_raw(i32, i32);
+    @declare_id_rel!(edge, i32, i32);
+    @declare_id_rel!(path, i32, Id);
 
-    let new_id = !path(x, nest_id.clone()),
-    path_id(x, nest_id, new_id) <--
-        edge_id(x, y, eid),
-        let nest_id = StructId("edge", *eid);
+    id_gen!(edge, id, x, y) <-- edge_raw(x, y);
 
-    let new_id = !path(x, nest_id.clone()),
-    path_id(x, nest_id, new_id) <--
+    id_gen!(path, new_id, x, nest_id.clone()) <--
+        id_rel!(edge, x, y, eid),
+        let nest_id = Id("edge", *eid);
+
+    id_gen!(path, new_id, x, nest_id.clone()) <--
         edge(x, y),
-        path_id(y, _, pid),
-        let nest_id = StructId("edge", *pid);
-
+        id_rel!(path, y, _, pid),
+        let nest_id = Id("edge", *pid);
 }
 
 #[test]
@@ -140,7 +140,7 @@ ascent_par! {
     relation edge_id(i32, i32, usize);
     relation path(i32, i32);
     relation path_id(i32, i32, usize);
-    relation provenance(StructId, StructId);
+    relation provenance(Id, Id);
 
     // let <id> = ... will allow you to extract the length of the relation when
     // head clasue tuple is created. `!` operator will enforce all head clause
@@ -152,13 +152,13 @@ ascent_par! {
 
     let new_id = !path(x, y),
     path_id(x, y, new_id),
-    provenance(StructId("path", new_id), StructId("edge", *eid)) <--
+    provenance(Id("path", new_id), Id("edge", *eid)) <--
         edge_id(x, y, eid);
 
     let new_id = !path(x, z),
     path_id(x, z, new_id),
     // provenance(StructId("path", new_id), StructId("path", *pid)),
-    provenance(StructId("path", new_id), StructId("edge", *eid)) <--
+    provenance(Id("path", new_id), Id("edge", *eid)) <--
         edge_id(x, y, eid),
         path_id(y, z, pid);
 }
