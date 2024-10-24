@@ -167,6 +167,37 @@ fn test_macro_unary_rels() {
 }
 
 #[test]
+fn test_macro_dep_head() {
+   let input = quote! {
+      relation foo(i32, i32);
+      relation bar(i32, i32);
+      relation foobar(i32, usize);
+
+      foo(1, 2);
+      bar(1, 2);
+
+      let new_bar = !bar(x, y), foobar(x, new_bar) <-- foo(x, y);
+   };
+
+   write_to_scratchpad(input);
+}
+
+#[test]
+fn test_relation_id() {
+   let input = quote! {
+      relation foo(i32, i32);
+      relation bar(i32, i32);
+      relation foobar(i32, usize);
+
+      foo(1, 2);
+
+      let new_bar = !bar(x, y), foobar(x, new_bar) <-- foo(x, y);
+   };
+
+   write_to_scratchpad(input);
+}
+
+#[test]
 fn test_macro3() {
    let input = quote! {
       relation bar(i32, i32);
@@ -541,4 +572,26 @@ fn test_macro_in_macro() {
    };
 
    write_to_scratchpad(inp);
+}
+
+#[test]
+fn test_function() {
+   let prefix = quote! {
+      #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+      struct Tag(&'static str, usize);
+   };
+   let inp = quote!{
+      relation ID edge(i32, i32);
+      relation ID path(i32, Tag);
+      relation input(i32, i32);
+
+      function path_length(Tag) -> usize;
+      %path_length(Tag("edge", *pid)) -> ret_val
+        <--
+        path(x, res).pid,
+        %path_length(res) -> rest_length,
+        let ret_val = rest_length + 1;
+   };
+
+   write_with_prefix_to_scratchpad(inp, prefix);
 }
